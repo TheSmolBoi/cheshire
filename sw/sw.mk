@@ -14,14 +14,14 @@ CHS_SW_AR      := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-ar
 CHS_SW_CC      := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-gcc
 CHS_SW_OBJCOPY := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-objcopy
 CHS_SW_OBJDUMP := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-objdump
-CHS_SW_LTOPLUG := $(shell find $(shell dirname $(CHS_SW_GCC_BINROOT))/libexec/gcc/riscv64-unknown-elf/**/liblto_plugin.so)
+CHS_SW_LTOPLUG := $(shell find $(shell dirname $(CHS_SW_GCC_BINROOT))/lib/gcc/riscv64-unknown-elf/**/liblto_plugin.so)
 
 CHS_SW_DIR       ?= $(CHS_ROOT)/sw
 CHS_SW_LD_DIR    ?= $(CHS_SW_DIR)/link
 CHS_SW_ZSL_TGUID := 0269B26A-FD95-4CE4-98CF-941401412C62
 CHS_SW_DTB_TGUID := BA442F61-2AEF-42DE-9233-E4D75D3ACB9D
 CHS_SW_FW_TGUID  := 99EC86DA-3F5B-4B0D-8F4B-C4BACFA5F859
-CHS_SW_DISK_SIZE ?= 16M
+CHS_SW_DISK_SIZE ?= 40M
 
 CHS_SW_FLAGS   ?= -DOT_PLATFORM_RV32 -march=rv64gc_zifencei -mabi=lp64d -mstrict-align -O2 -Wall -Wextra -static -ffunction-sections -fdata-sections -frandom-seed=cheshire -fuse-linker-plugin -flto -Wl,-flto
 CHS_SW_CCFLAGS ?= $(CHS_SW_FLAGS) -ggdb -mcmodel=medany -mexplicit-relocs -fno-builtin -fverbose-asm -pipe
@@ -139,6 +139,16 @@ $(foreach link,$(patsubst $(CHS_SW_LD_DIR)/%.ld,%,$(wildcard $(CHS_SW_LD_DIR)/*.
 # Images from CVA6 SDK (built externally)
 CHS_CVA6_SDK_IMGS ?= $(addprefix $(CHS_SW_DIR)/deps/cva6-sdk/install64/,fw_payload.bin uImage)
 
+# Determine size of uImage
+IMG_SIZE := $(shell if [ -f $(CHS_SW_DIR)/deps/cva6-sdk/install64/uImage ]; then   \
+			stat -c '%s' $(CHS_SW_DIR)/deps/cva6-sdk/install64/uImage; \
+		    else                                                           \
+			echo 0;                                                    \
+		    fi;)
+
+# Make number of sectors a multiple of 32 (for FAT) also add 1MB as buffer
+PART_SEC := $(shell echo $$((($(IMG_SIZE) / 512 + 2048) / 32 * 32)))
+
 # Create full Linux disk image
 $(CHS_SW_DIR)/boot/linux.%.gpt.bin: $(CHS_SW_DIR)/boot/zsl.rom.bin $(CHS_SW_DIR)/boot/cheshire.%.dtb $(CHS_CVA6_SDK_IMGS)
 	truncate -s $(CHS_SW_DISK_SIZE) $@
@@ -146,13 +156,20 @@ $(CHS_SW_DIR)/boot/linux.%.gpt.bin: $(CHS_SW_DIR)/boot/zsl.rom.bin $(CHS_SW_DIR)
 		--new=1:64:96 --typecode=1:$(CHS_SW_ZSL_TGUID) \
 		--new=2:128:159 --typecode=2:$(CHS_SW_DTB_TGUID) \
 		--new=3:2048:8191 --typecode=3:$(CHS_SW_FW_TGUID) \
-		--new=4:8192:24575 --typecode=4:8300 \
-		--new=5:24576:0 --typecode=5:8200 \
-		$@
+		--new=4:8192:$$(($(PART_SEC) + 8192)) --typecode=4:8300 \
+		--new=5:$$(($(PART_SEC) + 8193)):0 --typecode=5:8200 \
+                $@
 	dd if=$(word 1,$^) of=$@ bs=512 seek=64 conv=notrunc
 	dd if=$(word 2,$^) of=$@ bs=512 seek=128 conv=notrunc
 	dd if=$(word 3,$^) of=$@ bs=512 seek=2048 conv=notrunc
-	dd if=$(word 4,$^) of=$@ bs=512 seek=8192 conv=notrunc
+	# Create FAT32 filesystems with uImage
+	dd if=/dev/zero of=$(CHS_SW_DIR)/boot/fat.img bs=512 count=$(PART_SEC)
+	mkfs.fat $(CHS_SW_DIR)/boot/fat.img
+	mcopy -i $(CHS_SW_DIR)/boot/fat.img $(word 4,$^) ::
+	# Write to the SD card image
+	dd if=$(CHS_SW_DIR)/boot/fat.img of=$@ bs=512 seek=8192 conv=notrunc
+	# Cleanup
+	rm $(CHS_SW_DIR)/boot/fat.img
 
 #########
 # Tests #
