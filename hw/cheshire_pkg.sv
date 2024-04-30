@@ -503,6 +503,7 @@ package cheshire_pkg;
       RVZCB                 : 1,
       XFVec                 : 0,
       CvxifEn               : 0,
+      CMOEn                 : 1,
       ZiCondExtEn           : 1,
       RVSCLIC               : cfg.Clic,
       RVF                   : 1,
