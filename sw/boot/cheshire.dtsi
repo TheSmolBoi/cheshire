@@ -19,7 +19,7 @@
     #address-cells = <2>;
     #size-cells = <2>;
     ranges;
-    bootargs = "console=ttyS0,115200 console=tty0";
+//    bootargs = "console=ttyS0,115200 console=tty0";
     stdout-path = "/soc/serial@3002000:115200";
     framebuffer0: framebuffer@A0000000 {
       compatible = "simple-framebuffer"; 
@@ -46,7 +46,21 @@
       status = "okay";
       compatible = "eth,ariane", "riscv";
       clock-frequency = <50000000>; // 50 MHz
-      riscv,isa = "rv64imafdc";
+      riscv,isa-base = "rv64i";
+      riscv,isa-extensions = "i", "m", "a", "f", "d", "c", "zicbom", "zicbop", "zicboz", "zicond", "zicntr", "zicsr", "zifencei", "zihpm", "zcb";
+      d-cache-block-size = <64>;
+      d-cache-sets = <128>;
+      d-cache-size = <32768>;
+      d-tlb-sets = <1>;
+      d-tlb-size = <16>;
+      i-cache-block-size = <128>;
+      i-cache-sets = <32>;
+      i-cache-size = <16384>;
+      i-tlb-sets = <1>;
+      i-tlb-size = <16>;
+//      riscv,cbom-block-size = <64>;
+//      riscv,cbop-block-size = <64>;
+//      riscv,cboz-block-size = <64>;
       mmu-type = "riscv,sv39";
       tlb-split;
       reg = <0>;
