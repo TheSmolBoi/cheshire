@@ -21,7 +21,6 @@ CHS_SW_LD_DIR    ?= $(CHS_SW_DIR)/link
 CHS_SW_ZSL_TGUID := 0269B26A-FD95-4CE4-98CF-941401412C62
 CHS_SW_DTB_TGUID := BA442F61-2AEF-42DE-9233-E4D75D3ACB9D
 CHS_SW_FW_TGUID  := 99EC86DA-3F5B-4B0D-8F4B-C4BACFA5F859
-CHS_SW_DISK_SIZE ?= 40M
 
 CHS_SW_FLAGS   ?= -DOT_PLATFORM_RV32 -march=rv64gc_zifencei -mabi=lp64d -mstrict-align -O2 -Wall -Wextra -static -ffunction-sections -fdata-sections -frandom-seed=cheshire -fuse-linker-plugin -flto -Wl,-flto
 CHS_SW_CCFLAGS ?= $(CHS_SW_FLAGS) -ggdb -mcmodel=medany -mexplicit-relocs -fno-builtin -fverbose-asm -pipe
@@ -149,9 +148,9 @@ IMG_SIZE := $(shell if [ -f $(CHS_SW_DIR)/deps/cva6-sdk/install64/uImage ]; then
 # Make number of sectors a multiple of 32 (for FAT) also add 1MB as buffer
 PART_SEC := $(shell echo $$((($(IMG_SIZE) / 512 + 2048) / 32 * 32)))
 
-# Create full Linux disk image
+# Create full Linux disk image, final size is determined by uImage size plus 6MB
 $(CHS_SW_DIR)/boot/linux.%.gpt.bin: $(CHS_SW_DIR)/boot/zsl.rom.bin $(CHS_SW_DIR)/boot/cheshire.%.dtb $(CHS_CVA6_SDK_IMGS)
-	truncate -s $(CHS_SW_DISK_SIZE) $@
+	truncate -s $$(($(PART_SEC) * 512 + 6291456)) $@
 	sgdisk --clear -g --set-alignment=1 \
 		--new=1:64:96 --typecode=1:$(CHS_SW_ZSL_TGUID) \
 		--new=2:128:159 --typecode=2:$(CHS_SW_DTB_TGUID) \
