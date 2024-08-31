@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: SHL-0.51
 //
 // Cyril Koenig <cykoenig@iis.ee.ethz.ch>
+// Luka Guzenko <lguzenko@student@ethz.ch>
 
 /include/ "cheshire.genesys2.dts"
 
