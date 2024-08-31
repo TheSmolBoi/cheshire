@@ -20,6 +20,7 @@
 &soc {
   usb@3008000 {
     compatible = "generic-ohci";
+//    dma-noncoherent;
     reg = <0x0 0x3008000 0x0 0x1000>;
     interrupt-parent = <&PLIC0>;
     interrupts = <19>;
